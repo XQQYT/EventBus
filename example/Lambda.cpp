@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "../include/EventBus.h"
+#include "EventBus/EventBus.h"
 
 int main(){
     EventBus::getInstance().registerEvent("LambdaTest");

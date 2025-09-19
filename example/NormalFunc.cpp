@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "../include/EventBus.h"
+#include "EventBus/EventBus.h"
 
 void func(int a,int b){
     std::cout<<"Normal function: a+b="<<a+b<<std::endl;
