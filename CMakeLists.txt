@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.2.0)
 project(EventBus)
 
-add_executable(NormalFuncTest example/NormalFunc.cpp)
-target_include_directories(NormalFuncTest PRIVATE include)
+function(add_example name)
+    add_executable(${name} example/${name}.cpp)
+    target_include_directories(${name} PRIVATE include)
+endfunction()
 
-add_executable(LambdaTest example/Lambda.cpp)
-target_include_directories(LambdaTest PRIVATE include)
-
-add_executable(MemberFunc example/MemberFunc.cpp)
-target_include_directories(MemberFunc PRIVATE include)
+add_example(NormalFunc)
+add_example(Lambda)
+add_example(MemberFunc)
