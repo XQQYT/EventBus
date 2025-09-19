@@ -2,6 +2,8 @@
 
 ## A lightweight, header-only C++ EventBus library providing a simple and easy-to-use publish-subscribe mechanism.
 
+[中文文档](README_zh.md)
+
 ## Features
 
 1. **Lightweight**: Header-only, zero dependencies (except C++17 standard library)
