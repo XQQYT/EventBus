@@ -4,7 +4,7 @@
 #include <thread>
 #include <functional>
 #include "ThreadQueue.hpp"
-#include "PriorityQueue.hpp"
+// #include "PriorityQueue.hpp"
 #include <chrono>
 #include <unordered_map>
 #include <vector>
@@ -28,8 +28,8 @@ public:
         switch (type) {
             case NORMAL:
                 return std::make_unique<ThreadQueue<Args...>>(max_size);
-            case PRIORITY:
-                return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
+            // case PRIORITY:
+            //     return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
             default:
                 throw std::invalid_argument("Unsupported queue type");
         }
@@ -65,10 +65,10 @@ public:
 		for (auto& thread : thread_map) {
 			if(thread.second.joinable())
 			{
-				std::cout<<"worker thread exit"<<std::endl;
 				thread.second.join();
 			}
 		}
+		std::cout<<"ThreadPool have exited"<<std::endl;
 	}
 
 
@@ -80,7 +80,8 @@ public:
 		thread_busy_num = 0;
 		thread_capacity = thread_max;
 		thread_size = thread_min_;
-        task_queue = QueueFactory<Args...>::createQueue(type,task_queue_max);
+		//TODO:support priority queue
+        task_queue = QueueFactory<Args...>::createQueue(NORMAL,task_queue_max);
 
 
 		manager_thread = std::thread(&ThreadPool::managerWorkFunction, this);
@@ -91,9 +92,9 @@ public:
 		
 	}
 
-	void addTask(int priority,std::function<void(Args...)> func, Args... args) {
-		task_queue->addTask(priority,std::move(func), std::forward<Args>(args)...);
-	}
+	// void addTask(int priority,std::function<void(Args...)> func, Args... args) {
+	// 	task_queue->addTask(priority,std::move(func), std::forward<Args>(args)...);
+	// }
     void addTask(std::function<void(Args...)> func, Args... args) {
         task_queue->addTask(std::move(func), std::forward<Args>(args)...);
     }
@@ -173,7 +174,6 @@ private:
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
-		std::cout << "manager thread exit" << std::endl;
 	}
 
 	void WorkerWorkFunction() {
