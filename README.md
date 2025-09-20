@@ -1,166 +1,169 @@
 # EventBus
 
-## A lightweight, header-only C++ EventBus library providing a simple and easy-to-use publish-subscribe mechanism.
+## A lightweight, header-only C++ event bus library that provides an easy-to-use publish-subscribe mechanism.
 
 [中文文档](README_zh.md)
 
+---
+
+## Table of Contents
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Include the header](#include-the-header)
+  - [Initialization](#initialization)
+- [Examples](#examples)
+  - [1. Using Lambda](#1-using-lambda)
+  - [2. Using Member Function](#2-using-member-function)
+  - [3. Using Normal Function + Priority Tasks](#3-using-normal-function--priority-tasks)
+  - [4. Unsubscribe](#4-unsubscribe)
+- [API Reference](#api-reference)
+- [Supported Callback Types](#supported-callback-types)
+- [Integration Requirements](#integration-requirements)
+- [Performance Tips](#performance-tips)
+- [License](#license)
+- [Contributing](#contributing)
+- [Support](#support)
+
+---
+
 ## Features
 
-1. **Lightweight**: Header-only, zero dependencies (except C++17 standard library)
-
-2. **Easy Integration**: Single-header design, just include and use
-
-3. **Thread-Safe**: Built-in thread pool support for asynchronous event handling
-
+1. **Lightweight**: Header-only, zero dependencies (except for the C++17 standard library)
+2. **Easy Integration**: Single-header design, ready to use once included
+3. **Thread-Safe**: Built-in thread pool for asynchronous event handling
 4. **Type-Safe**: Template-based type-safe event handling
-
 5. **High Performance**: Optimized with modern C++ features
+6. **Ease of Use**: Simple API design, quick to get started
 
-6. **Ease of Use**: Clean API design for quick adoption
+---
 
-## Quick Start
+## Getting Started
 
-### Include Header File
-
+### Include the header
 ```cpp
-#include "EventBus.hpp"
+#include "EventBus/EventBus.hpp"
 ```
 
-### Basic Usage
+### Initialization
+#### It is generally recommended to wrap EventBus as a singleton in real projects, this is only a demonstration
 ```cpp
-// Get EventBus instance
-auto& bus = EventBus::getInstance();
-
-// Register events
-bus.registerEvent("user_login");
-bus.registerEvent("data_loaded");
-
-// Subscribe to events
-bus.subscribeSafe("user_login", [](const std::string& username, int userId) {
-    std::cout << "User logged in: " << username << " (ID: " << userId << ")
-";
-});
-
-// Publish event
-bus.publish("user_login", "john_doe", 12345);
-
-// Asynchronous handling is done automatically via thread pool
+EventBus bus;
+EventBus::EventBusConfig config{
+    EventBus::ThreadModel::DYNAMIC,   // Thread pool model
+    EventBus::TaskModel::NORMAL,      // Task model
+    2,                                // Minimum threads
+    4,                                // Maximum threads
+    1024                              // Queue capacity
+};
+bus.initEventBus(config);
 ```
 
-### API Reference
+---
 
-#### Core Methods
-| Method | Description |
-|:------ | :------: |
-|getInstance() | Get singleton instance |
-|registerEvent(eventName) | Register an event type |
-|subscribe(eventName, callback) | Subscribe to an event |
-|subscribeSafe(eventName, callback) | Safe subscription (auto-registers event) |
-|publish(eventName, args...) | Publish an event |
-|unsubscribe(eventName, id) | Unsubscribe from an event |
-|isEventRegistered(eventName) | Check if an event is registered |
+## Examples
 
-### Event Callback Signatures
-#### Supports multiple function types:
-
-- Lambda expressions
-
-- `std::function`
-
-- Function pointers
-
-- Member functions (wrapped with `std::bind` or lambdas)
-
-### Examples
-
-#### Basic Event Handling
+### 1. Using Lambda
 ```cpp
-auto& bus = EventBus::getInstance();
-
-// Subscribe to events
-bus.subscribeSafe("app_started", []() {
-    std::cout << "Application started!
-";
+bus.registerEvent("LambdaTest");
+bus.subscribe("LambdaTest", [](int a, int b) {
+    std::cout << "LambdaTest: a+b=" << a + b << std::endl;
 });
-
-bus.subscribeSafe("user_action", [](const std::string& action, int value) {
-    std::cout << "User performed: " << action << " with value: " << value << "
-";
-});
-
-// Publish events
-bus.publish("app_started");
-bus.publish("user_action", "click", 42);
+bus.publish("LambdaTest", 77, 88);
 ```
 
-#### Custom Data Structures
+### 2. Using Member Function
 ```cpp
-struct UserData {
-    std::string name;
-    int age;
-    std::vector<std::string> roles;
+class Handler {
+public:
+    void memberFunc(int a, int b) {
+        std::cout << "Member function: a+b=" << a + b << std::endl;
+    }
 };
 
-// Subscribe to complex event
-bus.subscribeSafe("user_created", [](const UserData& user) {
-    std::cout << "New user created: " << user.name 
-              << ", Age: " << user.age 
-              << ", Roles: " << user.roles.size() << "
-";
+Handler obj;
+bus.registerEvent("MemberFunc");
+bus.subscribe("MemberFunc", std::bind(&Handler::memberFunc, obj, std::placeholders::_1, std::placeholders::_2));
+bus.publish("MemberFunc", 10, 20);
+```
+
+### 3. Using Normal Function + Priority Tasks
+```cpp
+void func(int a, int b) {
+    std::cout << "Normal function: a+b=" << a + b << std::endl;
+}
+
+bus.registerEvent("NormalFunc");
+bus.subscribe("NormalFunc", func);
+
+// Low priority
+bus.publish(EventBus::TaskPriority::LOW, "NormalFunc", 1, 2);
+
+// High priority
+bus.publish(EventBus::TaskPriority::HIGH, "NormalFunc", 100, 200);
+```
+
+### 4. Unsubscribe
+```cpp
+auto id = bus.subscribe("LambdaTest", [](int x) {
+    std::cout << "Received: " << x << std::endl;
 });
 
-// Publish complex event
-UserData newUser{"Alice", 30, {"admin", "user"}};
-bus.publish("user_created", newUser);
+bus.publish("LambdaTest", 42);
+bus.unsubscribe("LambdaTest", id);   // Unsubscribe
 ```
 
-#### Error Handling
-```cpp
-try {
-    bus.publish("unregistered_event", "data"); // throws exception
-} catch (const std::runtime_error& e) {
-    std::cerr << "Error: " << e.what() << "\n";
-}
-```
+---
 
-### Thread Pool Configuration
-#### EventBus includes a built-in thread pool with default configuration:
+## API Reference
 
-- Core threads: 2  
-- Max threads: 4  
-- Task queue capacity: 1024  
+| Method | Description |
+|:-------|:------------|
+| `registerEvent(eventName)` | Register an event type |
+| `subscribe(eventName, callback)` | Subscribe to an event |
+| `subscribeSafe(eventName, callback)` | Safe subscription (auto-registers event) |
+| `publish(eventName, args...)` | Publish an event (normal task) |
+| `publish(priority, eventName, args...)` | Publish an event (with priority) |
+| `unsubscribe(eventName, id)` | Unsubscribe from an event |
+| `isEventRegistered(eventName)` | Check if an event is registered |
 
-```cpp
-// Custom configuration can be done in EventBus constructor
-EventBus() : thread_pool(std::make_unique<ThreadPool<>>(2, 4, 1024)) {}
-```
+---
 
-### Integration Requirements
-- **C++ Standard**: C++17 or later  
-- **Compilers**: GCC 7+, Clang 5+, MSVC 2017+  
-- **Dependencies**: Only requires C++ Standard Library  
+## Supported Callback Types
+- Lambda expressions  
+- Normal function pointers  
+- Member functions (via `std::bind` or Lambda wrappers)  
+- `std::function`  
 
-### Manual Include
-```cpp
-// Ensure ThreadPool.hpp is in the same directory or include path
-#include "EventBus.hpp"
-```
+---
 
-### Performance Tips
-1. **Event Names**: Use `const` strings or string literals to avoid copies  
-2. **Callbacks**: Capture by reference to reduce unnecessary copies  
-3. **Thread Safety**: Thread-safe by default, but manage shared resources carefully in callbacks  
-4. **Memory Management**: Use smart pointers or pass by reference for large objects  
+## Integration Requirements
+- **C++ Standard**: C++17 or higher  
+- **Compiler**: GCC 7+, Clang 5+, MSVC 2017+  
+- **Dependencies**: Only the C++ standard library  
+
+---
+
+## Performance Tips
+1. Event names: Use `const` strings or string literals to avoid copies
+2. Callbacks: Use reference capture to avoid unnecessary copies
+3. Thread safety: Thread-safe by default, but be cautious with shared resources inside callbacks
+4. Memory management: Use smart pointers or references for large objects
+
+---
 
 ## License
-MIT License - See [LICENSE](LICENSE) file
+MIT License - See [LICENSE](LICENSE) for details
 
-## Contribution
+---
+
+## Contributing
 Issues and Pull Requests are welcome!
 
-## Support
-For questions, please submit:  
+---
 
-GitHub Issues: [Report an issue](https://github.com/XQQYT/EventBus/issues)  
+## Support
+For questions, please submit:
+
+GitHub Issues: [Report an issue](https://github.com/XQQYT/EventBus/issues)
 
 Email: xqqyt0502@163.com

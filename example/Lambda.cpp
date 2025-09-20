@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "EventBus/EventBus.h"
+#include "EventBus/EventBus.hpp"
 
 int main(){
     EventBus eventbus;

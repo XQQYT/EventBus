@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "EventBus/EventBus.h"
+#include "EventBus/EventBus.hpp"
 #include <ctime>
 
 void func(int a,int b){
