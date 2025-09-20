@@ -21,7 +21,7 @@ class Queue
 {
 public:
 	Queue() {};
-	~Queue() {};
+	virtual ~Queue() {};
     virtual void addTask(std::function<void(Args...)>&& func, Args&&... args){};
     virtual void addTask(int priority, std::function<void(Args...)>&& func, Args&&... args){};
 	virtual std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() = 0;

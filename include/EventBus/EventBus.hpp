@@ -21,18 +21,18 @@
 
 #include "ThreadPool/ThreadPool.hpp"
 
-// function_traits 定义
+// function_traits definitions
 template <typename T>
 struct function_traits;
 
-// 普通函数
+// Normal function
 template <typename Ret, typename... Args>
 struct function_traits<Ret(Args...)>
 {
     using signature = Ret(Args...);
 };
 
-// 函数指针
+// Function pointer
 template <typename Ret, typename... Args>
 struct function_traits<Ret (*)(Args...)> : function_traits<Ret(Args...)>
 {
@@ -44,25 +44,25 @@ struct function_traits<std::function<Ret(Args...)>> : function_traits<Ret(Args..
 {
 };
 
-// 成员函数指针
+// Member function pointer
 template <typename ClassType, typename Ret, typename... Args>
 struct function_traits<Ret (ClassType::*)(Args...)> : function_traits<Ret(Args...)>
 {
 };
 
-// const 成员函数指针
+// const member function pointer
 template <typename ClassType, typename Ret, typename... Args>
 struct function_traits<Ret (ClassType::*)(Args...) const> : function_traits<Ret(Args...)>
 {
 };
 
-// 函数对象（包括lambda）
+// Function objects (including lambda)
 template <typename Callable>
 struct function_traits : function_traits<decltype(&Callable::operator())>
 {
 };
 
-// 特化处理 std::bind
+// Specialization for std::bind
 template <typename Callable, typename... Args>
 struct function_traits<std::_Bind<Callable(Args...)>>
     : function_traits<Callable>
@@ -104,15 +104,26 @@ public:
     };
 
 public:
+    /**
+     * @brief Construct a new EventBus object
+     */
     EventBus()
     {
         init_status = false;
     };
+    /**
+     * @brief Destroy the EventBus object
+     */
     ~EventBus(){};
     EventBus(const EventBus &) = delete;
     EventBus(EventBus &&) = delete;
     EventBus &operator=(const EventBus &) = delete;
 
+    /**
+     * @brief Initialize the EventBus with configuration
+     * @param config EventBusConfig object
+     * @throw runtime_error if configuration is invalid
+     */
     void initEventBus(EventBusConfig config)
     {
         if (config.thread_model == ThreadModel::UNDEFINED)
@@ -158,6 +169,10 @@ public:
         task_model = config.task_model;
     }
 
+    /**
+     * @brief Register an event with a given name
+     * @param eventName Name of the event
+     */
     void registerEvent(const std::string eventName)
     {
         if (!init_status)
@@ -171,7 +186,13 @@ public:
         }
     }
 
-    // 显式模板参数的 subscribe
+    /**
+     * @brief Subscribe to an event with explicit std::function signature
+     * @tparam Args Event argument types
+     * @param eventName Event name
+     * @param callback Callback function
+     * @return callback_id Unique subscription ID
+     */
     template <typename... Args>
     callback_id subscribe(const std::string eventName, std::function<void(Args...)> callback)
     {
@@ -184,7 +205,13 @@ public:
         return id;
     }
 
-    // 自动推导 Callback 类型的 subscribe
+    /**
+     * @brief Subscribe to an event with automatic callback type deduction
+     * @tparam Callback Callback type
+     * @param eventName Event name
+     * @param callback Callback function
+     * @return callback_id Unique subscription ID
+     */
     template <typename Callback>
     callback_id subscribe(const std::string eventName, Callback &&callback)
     {
@@ -196,7 +223,13 @@ public:
         return subscribe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
 
-    // 安全订阅版本（自动注册事件）
+    /**
+     * @brief Subscribe to an event safely (auto-register if not exists)
+     * @tparam Args Event argument types
+     * @param eventName Event name
+     * @param callback Callback function
+     * @return callback_id Unique subscription ID
+     */
     template <typename... Args>
     callback_id subscribeSafe(const std::string eventName, std::function<void(Args...)> callback)
     {
@@ -207,7 +240,13 @@ public:
         return subscribe(eventName, callback);
     }
 
-    // 自动推导的安全订阅版本
+    /**
+     * @brief Safe subscribe with automatic type deduction
+     * @tparam Callback Callback type
+     * @param eventName Event name
+     * @param callback Callback function
+     * @return callback_id Unique subscription ID
+     */
     template <typename Callback>
     callback_id subscribeSafe(const std::string eventName, Callback &&callback)
     {
@@ -219,6 +258,12 @@ public:
         return subscribeSafe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
 
+    /**
+     * @brief Publish an event (normal task)
+     * @tparam Args Event argument types
+     * @param eventName Event name
+     * @param args Event arguments
+     */
     template <typename... Args>
     void publish(const std::string eventName, Args... args)
     {
@@ -264,6 +309,13 @@ public:
         }
     }
 
+    /**
+     * @brief Publish an event with priority
+     * @tparam Args Event argument types
+     * @param priority TaskPriority
+     * @param eventName Event name
+     * @param args Event arguments
+     */
     template <typename... Args>
     void publish(TaskPriority priority, const std::string eventName, Args... args)
     {
@@ -309,11 +361,24 @@ public:
         }
     }
 
+    /**
+     * @brief Check if an event is registered
+     * @param eventName Event name
+     * @return true If registered
+     * @return false Otherwise
+     */
     bool isEventRegistered(const std::string eventName) const
     {
         return registered_events.find(eventName) != registered_events.end();
     }
 
+    /**
+     * @brief Unsubscribe a callback by ID
+     * @param eventName Event name
+     * @param id Subscription ID
+     * @return true If unsubscribed successfully
+     * @return false If not found
+     */
     bool unsubscribe(const std::string eventName, callback_id id)
     {
         if (!init_status)

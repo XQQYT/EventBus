@@ -29,7 +29,6 @@ int main(){
     eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",97,0);
     eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",96,0);
     eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",95,0);
-
     std::this_thread::sleep_for(std::chrono::seconds(20));
     return 0;
 }
