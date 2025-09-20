@@ -114,7 +114,7 @@ public:
     /**
      * @brief Destroy the EventBus object
      */
-    ~EventBus(){};
+    virtual ~EventBus(){};
     EventBus(const EventBus &) = delete;
     EventBus(EventBus &&) = delete;
     EventBus &operator=(const EventBus &) = delete;
