@@ -18,6 +18,7 @@
 #include <memory>
 #include <type_traits>
 #include <thread>
+#include <string>
 
 #include "ThreadPool/ThreadPool.hpp"
 
@@ -62,12 +63,18 @@ struct function_traits : function_traits<decltype(&Callable::operator())>
 {
 };
 
-// Specialization for std::bind
-template <typename Callable, typename... Args>
-struct function_traits<std::_Bind<Callable(Args...)>>
-    : function_traits<Callable>
-{
+#ifdef _MSC_VER
+template <typename Ret, typename ClassType, typename... Args, typename... BoundArgs>
+struct function_traits<
+    std::_Binder<std::_Unforced, Ret(ClassType::*)(Args...), BoundArgs...>
+> {
+    using signature = Ret(Args...);
 };
+#else
+template <typename Callable, typename... Args>
+struct function_traits<std::_Bind<Callable(Args...)>> : function_traits<Callable> {};
+#endif
+
 
 using callback_id = size_t;
 
