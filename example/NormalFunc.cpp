@@ -8,9 +8,10 @@ void func(int a,int b){
 }
 
 int main(){
-    EventBus::getInstance().registerEvent("NormalFuncTest");
-    EventBus::getInstance().subscribe("NormalFuncTest",func);
-    EventBus::getInstance().publish("NormalFuncTest",77,88);
+    EventBus eventbus;
+    eventbus.registerEvent("NormalFuncTest");
+    eventbus.subscribe("NormalFuncTest",func);
+    eventbus.publish("NormalFuncTest",77,88);
     std::this_thread::sleep_for(std::chrono::seconds(1));
     return 0;
 }
