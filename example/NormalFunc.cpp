@@ -2,18 +2,34 @@
 #include <thread>
 #include <chrono>
 #include "EventBus/EventBus.h"
+#include <ctime>
 
 void func(int a,int b){
     std::cout<<"Normal function: a+b="<<a+b<<std::endl;
+    std::srand(std::time(0));
+    int random_num = (std::rand() % 4) + 1;
+    std::this_thread::sleep_for(std::chrono::seconds(random_num));
 }
 
 int main(){
     EventBus eventbus;
-    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,2,4,1024};
+    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,EventBus::TaskModel::PRIORITY,2,4,1024};
     eventbus.initEventBus(config);
     eventbus.registerEvent("NormalFuncTest");
     eventbus.subscribe("NormalFuncTest",func);
-    eventbus.publish("NormalFuncTest",77,88);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",1,0);
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",2,0);
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",3,0);
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",4,0);
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",5,0);
+    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",6,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",100,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",99,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",98,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",97,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",96,0);
+    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",95,0);
+
+    std::this_thread::sleep_for(std::chrono::seconds(20));
     return 0;
 }

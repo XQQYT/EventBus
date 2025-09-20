@@ -5,7 +5,7 @@
 
 int main(){
     EventBus eventbus;
-    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,2,4,1024};
+    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,EventBus::TaskModel::NORMAL,2,4,1024};
     eventbus.initEventBus(config);
     eventbus.registerEvent("LambdaTest");
     eventbus.subscribe("LambdaTest",[](int a,int b){

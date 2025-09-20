@@ -4,7 +4,7 @@
 #include <thread>
 #include <functional>
 #include "ThreadQueue.hpp"
-// #include "PriorityQueue.hpp"
+#include "PriorityQueue.hpp"
 #include <chrono>
 #include <unordered_map>
 #include <vector>
@@ -31,8 +31,8 @@ public:
 		{
 		case NORMAL:
 			return std::make_unique<ThreadQueue<Args...>>(max_size);
-		// case PRIORITY:
-		//     return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
+		case PRIORITY:
+		    return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
 		default:
 			throw std::invalid_argument("Unsupported queue type");
 		}
@@ -88,8 +88,7 @@ public:
 		thread_busy_num = 0;
 		thread_capacity = thread_max;
 		thread_size = thread_min_;
-		// TODO:support priority queue
-		task_queue = QueueFactory<Args...>::createQueue(NORMAL, task_queue_max);
+		task_queue = QueueFactory<Args...>::createQueue(type, task_queue_max);
 		if(use_manager){
 			manager_thread = std::thread(&ThreadPool::managerWorkFunction, this);
 		}
@@ -100,9 +99,9 @@ public:
 		}
 	}
 
-	// void addTask(int priority,std::function<void(Args...)> func, Args... args) {
-	// 	task_queue->addTask(priority,std::move(func), std::forward<Args>(args)...);
-	// }
+	void addTask(int priority,std::function<void(Args...)> func, Args... args) {
+		task_queue->addTask(priority,std::move(func), std::forward<Args>(args)...);
+	}
 	void addTask(std::function<void(Args...)> func, Args... args)
 	{
 		task_queue->addTask(std::move(func), std::forward<Args>(args)...);
@@ -234,6 +233,13 @@ private:
 	{
 		std::thread::id id = std::this_thread::get_id();
 		std::unique_lock<std::mutex> lock(mtx);
+		
+		// 让线程自行detach，避免join问题
+		auto it = thread_map.find(id);
+		if (it != thread_map.end() && it->second.joinable()) {
+			it->second.detach();
+		}
+		
 		need_to_erase.push_back(id);
 	}
 };

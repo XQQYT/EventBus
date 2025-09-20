@@ -16,7 +16,7 @@ int main()
 {
     TestClass obj;
     EventBus eventbus;
-    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,2,4,1024};
+    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,EventBus::TaskModel::NORMAL,2,4,1024};
     eventbus.initEventBus(config);
     eventbus.registerEvent("MemberFunc");
     eventbus.subscribe("MemberFunc", std::bind(&TestClass::memberFunc, obj, std::placeholders::_1, std::placeholders::_2));

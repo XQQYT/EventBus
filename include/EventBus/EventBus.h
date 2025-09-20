@@ -80,16 +80,32 @@ public:
         DYNAMIC = 1,
         UNDEFINED = -1
     };
+
+    enum class TaskModel
+    {
+        NORMAL,
+        PRIORITY
+    };
+
+    enum class TaskPriority
+    {
+        HIGH,
+        MIDDLE,
+        LOW
+    };
+
     struct EventBusConfig
     {
-        ThreadModel model = ThreadModel::UNDEFINED;
+        ThreadModel thread_model = ThreadModel::UNDEFINED;
+        TaskModel task_model;
         unsigned int thread_min;
         unsigned int thread_max;
         unsigned int task_max;
     };
 
 public:
-    EventBus(){
+    EventBus()
+    {
         init_status = false;
     };
     ~EventBus(){};
@@ -99,27 +115,53 @@ public:
 
     void initEventBus(EventBusConfig config)
     {
-        if (config.model == ThreadModel::UNDEFINED)
+        if (config.thread_model == ThreadModel::UNDEFINED)
         {
-            throw std::runtime_error("Invalid ThreadModel : "+ std::to_string(static_cast<int>(config.model)));
+            throw std::runtime_error("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
         }
         this->config = config;
-        if (config.model == ThreadModel::DYNAMIC)
+        if (config.thread_model == ThreadModel::DYNAMIC)
         {
-            thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_max, config.task_max, ThreadPoolType::NORMAL, true);
+            if (config.task_model == TaskModel::NORMAL)
+            {
+                thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_max, config.task_max, ThreadPoolType::NORMAL, true);
+            }
+            else if (config.task_model == TaskModel::PRIORITY)
+            {
+                thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_max, config.task_max, ThreadPoolType::PRIORITY, true);
+            }
+            else
+            {
+                throw std::runtime_error("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
+            }
         }
-        else if (config.model == ThreadModel::FIXED)
+        else if (config.thread_model == ThreadModel::FIXED)
         {
-            thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_min, config.task_max, ThreadPoolType::NORMAL, false);
-        }else{
-            throw std::runtime_error("Invalid ThreadModel : "+ std::to_string(static_cast<int>(config.model)));
+            if (config.task_model == TaskModel::NORMAL)
+            {
+                thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_min, config.task_max, ThreadPoolType::NORMAL, false);
+            }
+            else if (config.task_model == TaskModel::PRIORITY)
+            {
+                thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_min, config.task_max, ThreadPoolType::PRIORITY, false);
+            }
+            else
+            {
+                throw std::runtime_error("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
+            }
+        }
+        else
+        {
+            throw std::runtime_error("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
         }
         init_status = true;
+        task_model = config.task_model;
     }
 
     void registerEvent(const std::string eventName)
     {
-        if(!init_status){
+        if (!init_status)
+        {
             throw std::runtime_error("EventBus has not been initialized");
         }
         auto [it, inserted] = registered_events.emplace(std::move(eventName));
@@ -146,7 +188,8 @@ public:
     template <typename Callback>
     callback_id subscribe(const std::string eventName, Callback &&callback)
     {
-        if(!init_status){
+        if (!init_status)
+        {
             throw std::runtime_error("EventBus has not been initialized");
         }
         using signature = typename function_traits<std::decay_t<Callback>>::signature;
@@ -168,7 +211,8 @@ public:
     template <typename Callback>
     callback_id subscribeSafe(const std::string eventName, Callback &&callback)
     {
-        if(!init_status){
+        if (!init_status)
+        {
             throw std::runtime_error("EventBus has not been initialized");
         }
         using signature = typename function_traits<std::decay_t<Callback>>::signature;
@@ -178,7 +222,8 @@ public:
     template <typename... Args>
     void publish(const std::string eventName, Args... args)
     {
-        if(!init_status){
+        if (!init_status)
+        {
             throw std::runtime_error("EventBus has not been initialized");
         }
         if (!isEventRegistered(eventName))
@@ -190,18 +235,77 @@ public:
 
         for (auto &wrapper : callbacks_map[eventName])
         {
-            thread_pool->addTask([wrapper, args_tuple]()
-                                 {
-                 try {
-                     if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
-                         std::apply(*cb, *args_tuple);
-                     } 
-                     else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
-                         (*cb)();
-                     }
-                 } catch (...) {
-                     std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
-                 } });
+            if (task_model == TaskModel::NORMAL)
+            {
+                thread_pool->addTask([wrapper, args_tuple](){
+                    try {
+                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
+                            std::apply(*cb, *args_tuple);
+                        } 
+                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
+                            (*cb)();
+                        }
+                    } catch (...) {
+                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
+                } });
+            }else if(task_model == TaskModel::PRIORITY){
+                thread_pool->addTask(static_cast<int>(TaskPriority::MIDDLE),[wrapper, args_tuple](){
+                    try {
+                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
+                            std::apply(*cb, *args_tuple);
+                        } 
+                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
+                            (*cb)();
+                        }
+                    } catch (...) {
+                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
+                } });
+            }
+        }
+    }
+
+    template <typename... Args>
+    void publish(TaskPriority priority, const std::string eventName, Args... args)
+    {
+        if (!init_status)
+        {
+            throw std::runtime_error("EventBus has not been initialized");
+        }
+        if (!isEventRegistered(eventName))
+        {
+            throw std::runtime_error("Event not registered: " + eventName);
+        }
+
+        auto args_tuple = std::make_shared<std::tuple<std::decay_t<Args>...>>(std::forward<Args>(args)...);
+
+        for (auto &wrapper : callbacks_map[eventName])
+        {
+            if (task_model == TaskModel::NORMAL)
+            {
+                thread_pool->addTask([wrapper, args_tuple](){
+                    try {
+                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
+                            std::apply(*cb, *args_tuple);
+                        } 
+                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
+                            (*cb)();
+                        }
+                    } catch (...) {
+                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
+                } });
+            }else if(task_model == TaskModel::PRIORITY){
+                thread_pool->addTask(static_cast<int>(priority),[wrapper, args_tuple](){
+                    try {
+                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
+                            std::apply(*cb, *args_tuple);
+                        } 
+                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
+                            (*cb)();
+                        }
+                    } catch (...) {
+                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
+                } });
+            }
         }
     }
 
@@ -212,7 +316,8 @@ public:
 
     bool unsubscribe(const std::string eventName, callback_id id)
     {
-        if(!init_status){
+        if (!init_status)
+        {
             throw std::runtime_error("EventBus has not been initialized");
         }
         if (!isEventRegistered(eventName))
@@ -245,6 +350,7 @@ private:
     std::unique_ptr<ThreadPool<>> thread_pool;
     EventBusConfig config;
     bool init_status;
+    TaskModel task_model;
 };
 
 #endif
