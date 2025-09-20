@@ -1,3 +1,10 @@
+/*
+ * EventBus
+ * Author: XQQYT
+ * License: MIT
+ * Year: 2025
+ */
+
 #ifndef THREADPOOL_H
 #define THREADPOOL_H
 #include <iostream>

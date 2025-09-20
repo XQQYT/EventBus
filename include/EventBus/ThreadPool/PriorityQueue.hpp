@@ -1,3 +1,10 @@
+/*
+ * EventBus
+ * Author: XQQYT
+ * License: MIT
+ * Year: 2025
+ */
+
 #include <iostream>
 #include <set>
 #include <mutex>

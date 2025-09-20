@@ -1,3 +1,10 @@
+/*
+ * EventBus
+ * Author: XQQYT
+ * License: MIT
+ * Year: 2025
+ */
+
 #ifndef THREADQUEUE_H
 #define THREADQUEUE_H
 

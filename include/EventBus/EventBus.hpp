@@ -1,5 +1,5 @@
 /*
- * XqqytDesktop
+ * EventBus
  * Author: XQQYT
  * License: MIT
  * Year: 2025
