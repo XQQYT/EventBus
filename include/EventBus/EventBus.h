@@ -74,17 +74,54 @@ using callback_id = size_t;
 class EventBus
 {
 public:
-    EventBus()
+    enum class ThreadModel : int
     {
-        thread_pool = std::make_unique<ThreadPool<>>(2, 4, 1024, ThreadPoolType::NORMAL);
+        FIXED = 0,
+        DYNAMIC = 1,
+        UNDEFINED = -1
+    };
+    struct EventBusConfig
+    {
+        ThreadModel model = ThreadModel::UNDEFINED;
+        unsigned int thread_min;
+        unsigned int thread_max;
+        unsigned int task_max;
+    };
+
+public:
+    EventBus(){
+        init_status = false;
     };
     ~EventBus(){};
     EventBus(const EventBus &) = delete;
     EventBus(EventBus &&) = delete;
     EventBus &operator=(const EventBus &) = delete;
 
+    void initEventBus(EventBusConfig config)
+    {
+        if (config.model == ThreadModel::UNDEFINED)
+        {
+            throw std::runtime_error("Invalid ThreadModel : "+ std::to_string(static_cast<int>(config.model)));
+        }
+        this->config = config;
+        if (config.model == ThreadModel::DYNAMIC)
+        {
+            thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_max, config.task_max, ThreadPoolType::NORMAL, true);
+        }
+        else if (config.model == ThreadModel::FIXED)
+        {
+            thread_pool = std::make_unique<ThreadPool<>>(config.thread_min, config.thread_min, config.task_max, ThreadPoolType::NORMAL, false);
+        }else{
+            throw std::runtime_error("Invalid ThreadModel : "+ std::to_string(static_cast<int>(config.model)));
+        }
+        init_status = true;
+    }
+
     void registerEvent(const std::string eventName)
     {
+        if(!init_status){
+            throw std::runtime_error("EventBus has not been initialized");
+        }
         auto [it, inserted] = registered_events.emplace(std::move(eventName));
         if (inserted)
         {
@@ -109,6 +146,9 @@ public:
     template <typename Callback>
     callback_id subscribe(const std::string eventName, Callback &&callback)
     {
+        if(!init_status){
+            throw std::runtime_error("EventBus has not been initialized");
+        }
         using signature = typename function_traits<std::decay_t<Callback>>::signature;
         return subscribe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
@@ -128,6 +168,9 @@ public:
     template <typename Callback>
     callback_id subscribeSafe(const std::string eventName, Callback &&callback)
     {
+        if(!init_status){
+            throw std::runtime_error("EventBus has not been initialized");
+        }
         using signature = typename function_traits<std::decay_t<Callback>>::signature;
         return subscribeSafe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
@@ -135,6 +178,9 @@ public:
     template <typename... Args>
     void publish(const std::string eventName, Args... args)
     {
+        if(!init_status){
+            throw std::runtime_error("EventBus has not been initialized");
+        }
         if (!isEventRegistered(eventName))
         {
             throw std::runtime_error("Event not registered: " + eventName);
@@ -166,6 +212,9 @@ public:
 
     bool unsubscribe(const std::string eventName, callback_id id)
     {
+        if(!init_status){
+            throw std::runtime_error("EventBus has not been initialized");
+        }
         if (!isEventRegistered(eventName))
             return false;
         auto &callbacks = callbacks_map[eventName];
@@ -183,9 +232,6 @@ public:
         }
         return false;
     }
-    void registerAllEvents()
-    {
-    }
 
 private:
     struct CallbackWrapper
@@ -197,6 +243,8 @@ private:
     std::unordered_set<std::string> registered_events;
     std::atomic<callback_id> next_id{0};
     std::unique_ptr<ThreadPool<>> thread_pool;
+    EventBusConfig config;
+    bool init_status;
 };
 
 #endif

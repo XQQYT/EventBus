@@ -5,6 +5,8 @@
 
 int main(){
     EventBus eventbus;
+    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,2,4,1024};
+    eventbus.initEventBus(config);
     eventbus.registerEvent("LambdaTest");
     eventbus.subscribe("LambdaTest",[](int a,int b){
         std::cout<<"LambdaTest: a+b="<<a+b<<std::endl;

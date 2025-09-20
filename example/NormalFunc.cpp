@@ -9,6 +9,8 @@ void func(int a,int b){
 
 int main(){
     EventBus eventbus;
+    EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,2,4,1024};
+    eventbus.initEventBus(config);
     eventbus.registerEvent("NormalFuncTest");
     eventbus.subscribe("NormalFuncTest",func);
     eventbus.publish("NormalFuncTest",77,88);
