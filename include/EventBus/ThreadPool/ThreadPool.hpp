@@ -12,6 +12,8 @@
 #include <functional>
 #include "ThreadQueue.hpp"
 #include "PriorityQueue.hpp"
+#include <condition_variable>
+#include <atomic>
 #include <chrono>
 #include <unordered_map>
 #include <vector>
@@ -39,7 +41,7 @@ public:
 		case NORMAL:
 			return std::make_unique<ThreadQueue<Args...>>(max_size);
 		case PRIORITY:
-		    return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
+			return std::make_unique<ThreadPriorityQueue<Args...>>(max_size);
 		default:
 			throw std::invalid_argument("Unsupported queue type");
 		}
@@ -53,7 +55,7 @@ public:
 	ThreadPool()
 	{
 		shutdown = false;
-		thread_busy_num = 0;
+		thread_busy_num.store(0);
 		need_to_close_num = 0;
 		thread_capacity = default_thread_max;
 		thread_size = default_thread_min;
@@ -73,7 +75,8 @@ public:
 	~ThreadPool()
 	{
 		closeThreadPool();
-		if(manager_thread.joinable()){
+		if (manager_thread.joinable())
+		{
 			manager_thread.join();
 		}
 		for (auto &thread : thread_map)
@@ -92,11 +95,12 @@ public:
 	{
 		shutdown = false;
 		need_to_close_num = 0;
-		thread_busy_num = 0;
+		thread_busy_num.store(0);
 		thread_capacity = thread_max;
 		thread_size = thread_min_;
 		task_queue = QueueFactory<Args...>::createQueue(type, task_queue_max);
-		if(use_manager){
+		if (use_manager)
+		{
 			manager_thread = std::thread(&ThreadPool::managerWorkFunction, this);
 		}
 		for (int i = 0; i < thread_min_; i++)
@@ -106,12 +110,15 @@ public:
 		}
 	}
 
-	void addTask(int priority,std::function<void(Args...)> func, Args... args) {
-		task_queue->addTask(priority,std::move(func), std::forward<Args>(args)...);
+	void addTask(int priority, std::function<void(Args...)> func, Args... args)
+	{
+		task_queue->addTask(priority, std::move(func), std::forward<Args>(args)...);
+		cv.notify_one();
 	}
 	void addTask(std::function<void(Args...)> func, Args... args)
 	{
 		task_queue->addTask(std::move(func), std::forward<Args>(args)...);
+		cv.notify_one();
 	}
 
 	void closeThreadPool()
@@ -119,7 +126,7 @@ public:
 		mtx.lock();
 		shutdown = true;
 		for (int i = 0; i < thread_size; i++)
-			task_queue->release();
+			cv.notify_one();
 		mtx.unlock();
 	}
 
@@ -129,7 +136,7 @@ public:
 	}
 
 private:
-	int thread_busy_num;
+	std::atomic<int> thread_busy_num;
 	int thread_capacity;
 	int thread_size;
 	int thread_min;
@@ -150,89 +157,112 @@ private:
 
 	bool shutdown;
 
-	int need_to_close_num;
+	std::atomic<int> need_to_close_num;
+
+	std::condition_variable cv;
 
 private:
 	void managerWorkFunction()
 	{
 		while (!shutdown)
 		{
-			std::shared_lock<std::shared_mutex> read_lock(rw_mtx);
 			int task_num = task_queue->getSize();
-			for (auto &id : need_to_erase)
-			{
-				thread_map.erase(id);
-			}
-			need_to_erase.clear();
 			bool add = false, remove = false;
 
 			if (scaling_rule)
-			{
-				std::tie(add, remove) = scaling_rule(task_num, thread_size, thread_busy_num);
-			}
+				std::tie(add, remove) = scaling_rule(task_num, thread_size, thread_busy_num.load());
 			else
 			{
 				add = (task_num > thread_size && thread_size < thread_capacity);
-				remove = (thread_busy_num * 2 < thread_size && thread_size > thread_min);
+				remove = (thread_busy_num.load() * 2 < thread_size && thread_size > thread_min);
 			}
 
 			if (add)
 			{
-				std::thread tmp_thread(&ThreadPool::WorkerWorkFunction, this);
-				std::unique_lock<std::mutex> write_lock(mtx);
-				thread_map.insert({tmp_thread.get_id(), std::move(tmp_thread)});
-				thread_size++;
-				write_lock.unlock();
 				std::cout << "add a thread" << std::endl;
+				std::thread new_thread(&ThreadPool::WorkerWorkFunction, this);
+				{
+					std::lock_guard<std::mutex> lk(mtx);
+					thread_map.emplace(new_thread.get_id(), std::move(new_thread));
+					thread_size++;
+				}
+				cv.notify_one();
 			}
-			else if (remove)
+			if (remove)
 			{
 				std::cout << "kill a thread" << std::endl;
-				std::unique_lock<std::mutex> write_lock(mtx);
-				need_to_close_num++;
-				task_queue->release();
-				write_lock.unlock();
+				need_to_close_num.fetch_add(1);
+				cv.notify_one();
+			}
+
+			std::vector<std::thread> threads_to_join;
+			{
+				std::lock_guard<std::mutex> lk(mtx);
+				for (auto &id : need_to_erase)
+				{
+					auto it = thread_map.find(id);
+					if (it != thread_map.end())
+					{
+						threads_to_join.emplace_back(std::move(it->second));
+						thread_map.erase(it);
+					}
+				}
+				need_to_erase.clear();
+			}
+			for (auto &t : threads_to_join)
+			{
+				if (t.joinable())
+					t.join();
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
+
+		cv.notify_all();
 	}
 
 	void WorkerWorkFunction()
 	{
-		while (!shutdown)
+		while (true)
 		{
-			task_queue->acquire();
-			if (shutdown)
-				break;
-			if (need_to_close_num > 0)
+			std::function<void(Args...)> func;
+			std::tuple<std::decay_t<Args>...> args;
+
 			{
-				shutdownThread();
-				mtx.lock();
-				need_to_close_num--;
-				thread_size--;
-				mtx.unlock();
+				std::unique_lock<std::mutex> lock(mtx);
+				cv.wait(lock, [this]
+						{ return shutdown || need_to_close_num.load() > 0 || task_queue->getSize() > 0; });
+			}
+			if (shutdown && task_queue->getSize() == 0)
+			{
+				std::unique_lock<std::mutex> lock(mtx);
+				need_to_erase.push_back(std::this_thread::get_id());
 				break;
+			}
+
+			if (need_to_close_num.load() > 0)
+			{
+				need_to_close_num.fetch_sub(1);
+				thread_size--;
+				std::unique_lock<std::mutex> lock(mtx);
+				need_to_erase.push_back(std::this_thread::get_id());
+				break;
+			}
+
+			if (task_queue->getSize() > 0)
+			{
+				auto task = task_queue->getTask();
+				func = std::move(task.first);
+				args = std::move(task.second);
+				thread_busy_num.fetch_add(1);
 			}
 			else
 			{
-				auto task = task_queue->getTask();
-				auto func = task.first;
-				auto args = task.second;
-
-				mtx.lock();
-				thread_busy_num++;
-				mtx.unlock();
-				std::apply(func, args);
-
-				mtx.lock();
-				thread_busy_num--;
-				mtx.unlock();
+				continue;
 			}
-		}
-		if (shutdown)
-		{
-			shutdownThread();
+
+			std::apply(func, args);
+			thread_busy_num.fetch_sub(1);
 		}
 	}
 
@@ -240,14 +270,12 @@ private:
 	{
 		std::thread::id id = std::this_thread::get_id();
 		std::unique_lock<std::mutex> lock(mtx);
-		
-		// 让线程自行detach，避免join问题
+
 		auto it = thread_map.find(id);
-		if (it != thread_map.end() && it->second.joinable()) {
-			it->second.detach();
+		if (it != thread_map.end() && it->second.joinable())
+		{
+			need_to_erase.push_back(id);
 		}
-		
-		need_to_erase.push_back(id);
 	}
 };
 

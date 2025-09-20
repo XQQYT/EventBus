@@ -9,9 +9,7 @@
 #define _QUEUE_H
 #include <iostream>
 #include <queue>
-#include <semaphore.h>
 #include <mutex>
-//#include <shared_mutex>
 #include <functional>
 
 
@@ -29,10 +27,7 @@ public:
 	virtual inline int getCapacity() noexcept = 0;
 
 	virtual inline int getSize() noexcept = 0;
-
-	virtual void release() = 0;
-
-	virtual void acquire() = 0;
+	
 private:
 
 };

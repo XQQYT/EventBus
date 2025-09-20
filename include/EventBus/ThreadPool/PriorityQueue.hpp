@@ -10,7 +10,6 @@
 #include <mutex>
 #include <functional>
 #include <tuple>
-#include <semaphore.h>
 #include "Queue.h"
 template <typename Func, typename Tuple>
 struct TaskWrapper {
@@ -37,7 +36,6 @@ public:
     explicit ThreadPriorityQueue(int max) noexcept
         : capacity(max), insertionOrder(0) {
         this->size = 0;
-        sem_init(&queue_sem,0,0);
     }
 
     ThreadPriorityQueue() {
@@ -56,7 +54,6 @@ public:
         auto arg_tuple=std::make_tuple(std::forward<Args>(args)...);
         task_set.insert(TaskType(std::move(func), std::move(arg_tuple), priority, insertionOrder++ ));
         this->size++;
-        sem_post(&queue_sem);
     }
 
     std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() {
@@ -77,14 +74,6 @@ public:
         return this->size;
     }
 
-    void release() {
-        sem_post(&queue_sem);
-    }
-
-    void acquire() {
-        sem_wait(&queue_sem);
-    }
-
 private:
     using TaskType = TaskWrapper<std::function<void(Args...)>, std::tuple<Args...>>;
     std::multiset<TaskType> task_set;
@@ -92,5 +81,4 @@ private:
     int capacity;
     int size;
     int insertionOrder;
-    sem_t queue_sem;
 };

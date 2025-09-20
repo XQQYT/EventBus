@@ -10,7 +10,6 @@
 
 #include <iostream>
 #include <queue>
-#include <semaphore.h>
 #include <mutex>
 #include <shared_mutex>
 #include <functional>
@@ -26,7 +25,6 @@ public:
 		:capacity(max) 
 	{
 		this->size = 0;
-        sem_init(&queue_sem,0,0);
 	}
 
 	ThreadQueue() 
@@ -48,7 +46,6 @@ public:
         task_queue.push({std::move(func), std::move(arg_tuple)});
 		this->size++;
 		mtx.unlock();
-        sem_post(&queue_sem);
 	}
 
 	std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask()
@@ -78,15 +75,6 @@ public:
 		int size_tmp = this->size;
 		return size_tmp;
 	}
-	void release()
-	{
-        sem_post(&queue_sem);
-	}
-
-	void acquire()
-	{
-        sem_wait(&queue_sem);
-	}
 
 private:
 	std::queue<std::pair<std::function<void(Args...)>, std::tuple<Args...>>> task_queue;
@@ -95,7 +83,6 @@ private:
 	std::shared_mutex rw_mtx;
 	int capacity;
 	int size;
-    sem_t queue_sem;
 };
 
 
