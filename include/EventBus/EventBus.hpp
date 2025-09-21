@@ -133,9 +133,27 @@ public:
      */
     void initEventBus(EventBusConfig config)
     {
+        if (config.thread_min <= 0) 
+        {
+            throw std::invalid_argument(
+            "Invalid EventBus config: thread_min must be > 0, got " + std::to_string(config.thread_min));
+        }
+
+        if (config.thread_max <= 0) 
+        {
+            throw std::invalid_argument(
+                "Invalid EventBus config: thread_max must be > 0, got " + std::to_string(config.thread_max));
+        }
+        if (config.thread_min > config.thread_max) 
+        {
+            throw std::invalid_argument(
+                "Invalid EventBus config: thread_min (" + std::to_string(config.thread_min) +
+                ") cannot be greater than thread_max (" + std::to_string(config.thread_max) + ")");
+        }
+
         if (config.thread_model == ThreadModel::UNDEFINED)
         {
-            throw std::runtime_error("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
+            throw std::invalid_argument("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
         }
         this->config = config;
         if (config.thread_model == ThreadModel::DYNAMIC)
@@ -150,7 +168,7 @@ public:
             }
             else
             {
-                throw std::runtime_error("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
+                throw std::invalid_argument("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
             }
         }
         else if (config.thread_model == ThreadModel::FIXED)
@@ -165,12 +183,12 @@ public:
             }
             else
             {
-                throw std::runtime_error("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
+                throw std::invalid_argument("Invalid TaskModel : " + std::to_string(static_cast<int>(config.task_model)));
             }
         }
         else
         {
-            throw std::runtime_error("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
+            throw std::invalid_argument("Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
         }
         init_status = true;
         task_model = config.task_model;

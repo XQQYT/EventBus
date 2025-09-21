@@ -3,10 +3,16 @@
 #include <chrono>
 #include "EventBus/EventBus.hpp"
 #include <ctime>
+#include <mutex>
+
+std::mutex mtx;
 
 void func(int a,int b){
-    std::cout<<"Normal function: a+b="<<a+b<<std::endl;
-    std::srand(std::time(0));
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        std::cout<<"Normal function: a+b="<<a+b<<std::endl;
+    }
+    std::srand(static_cast<unsigned int>(std::time(0)));
     int random_num = (std::rand() % 4) + 1;
     std::this_thread::sleep_for(std::chrono::seconds(random_num));
 }
@@ -14,7 +20,11 @@ void func(int a,int b){
 int main(){
     EventBus eventbus;
     EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,EventBus::TaskModel::PRIORITY,2,4,1024};
-    eventbus.initEventBus(config);
+    try{
+        eventbus.initEventBus(config);
+    }catch(const std::exception& e){
+        std::cout<<e.what()<<std::endl;
+    }
     eventbus.registerEvent("NormalFuncTest");
     eventbus.subscribe("NormalFuncTest",func);
     eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",1,0);
