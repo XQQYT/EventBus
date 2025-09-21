@@ -1,6 +1,6 @@
 # EventBus
-
-## 一个轻量级、仅头文件的 C++事件总线库，提供简单易用的事件发布-订阅机制。
+[![Windows](https://img.shields.io/badge/platform-Windows-blue?logo=windows)](https://www.microsoft.com/windows) [![Linux](https://img.shields.io/badge/platform-Linux-green?logo=linux)](https://www.linux.org/)
+## 一个轻量级、跨平台，仅头文件的 C++事件总线库，提供简单易用的事件发布-订阅机制。
 
 ---
 

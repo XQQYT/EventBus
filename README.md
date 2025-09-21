@@ -1,6 +1,6 @@
 # EventBus
-
-## A lightweight, header-only C++ event bus library that provides an easy-to-use publish-subscribe mechanism.
+[![Windows](https://img.shields.io/badge/platform-Windows-blue?logo=windows)](https://www.microsoft.com/windows) [![Linux](https://img.shields.io/badge/platform-Linux-green?logo=linux)](https://www.linux.org/)
+## A lightweight, cross-platform，header-only C++ event bus library that provides an easy-to-use publish-subscribe mechanism.
 
 [中文文档](README_zh.md)
 
