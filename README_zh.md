@@ -98,10 +98,10 @@ bus.registerEvent("NormalFunc");
 bus.subscribe("NormalFunc", func);
 
 // 低优先级
-bus.publish(EventBus::TaskPriority::LOW, "NormalFunc", 1, 2);
+bus.publishWithPriority(EventBus::TaskPriority::LOW, "NormalFunc", 1, 2);
 
 // 高优先级
-bus.publish(EventBus::TaskPriority::HIGH, "NormalFunc", 100, 200);
+bus.publishWithPriority(EventBus::TaskPriority::HIGH, "NormalFunc", 100, 200);
 ```
 
 ### 4. 取消订阅
@@ -124,7 +124,7 @@ bus.unsubscribe("LambdaTest", id);   // 取消订阅
 | `subscribe(eventName, callback)` | 订阅事件 |
 | `subscribeSafe(eventName, callback)` | 安全订阅（自动注册） |
 | `publish(eventName, args...)` | 发布事件（普通任务） |
-| `publish(priority, eventName, args...)` | 发布事件（带优先级） |
+| `publishWithPriority(priority, eventName, args...)` | 发布事件（带优先级） |
 | `unsubscribe(eventName, id)` | 取消订阅 |
 | `isEventRegistered(eventName)` | 检查事件是否注册 |
 

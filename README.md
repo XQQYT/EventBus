@@ -98,10 +98,10 @@ bus.registerEvent("NormalFunc");
 bus.subscribe("NormalFunc", func);
 
 // Low priority
-bus.publish(EventBus::TaskPriority::LOW, "NormalFunc", 1, 2);
+bus.publishWithPriority(EventBus::TaskPriority::LOW, "NormalFunc", 1, 2);
 
 // High priority
-bus.publish(EventBus::TaskPriority::HIGH, "NormalFunc", 100, 200);
+bus.publishWithPriority(EventBus::TaskPriority::HIGH, "NormalFunc", 100, 200);
 ```
 
 ### 4. Unsubscribe
@@ -124,7 +124,7 @@ bus.unsubscribe("LambdaTest", id);   // Unsubscribe
 | `subscribe(eventName, callback)` | Subscribe to an event |
 | `subscribeSafe(eventName, callback)` | Safe subscription (auto-registers event) |
 | `publish(eventName, args...)` | Publish an event (normal task) |
-| `publish(priority, eventName, args...)` | Publish an event (with priority) |
+| `publishWithPriority(priority, eventName, args...)` | Publish an event (with priority) |
 | `unsubscribe(eventName, id)` | Unsubscribe from an event |
 | `isEventRegistered(eventName)` | Check if an event is registered |
 

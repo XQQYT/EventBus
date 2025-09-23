@@ -27,18 +27,18 @@ int main(){
     }
     eventbus.registerEvent("NormalFuncTest");
     eventbus.subscribe("NormalFuncTest",func);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",1,0);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",2,0);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",3,0);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",4,0);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",5,0);
-    eventbus.publish(EventBus::TaskPriority::LOW,"NormalFuncTest",6,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",100,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",99,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",98,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",97,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",96,0);
-    eventbus.publish(EventBus::TaskPriority::HIGH,"NormalFuncTest",95,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",1,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",2,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",3,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",4,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",5,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::LOW,"NormalFuncTest",6,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",100,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",99,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",98,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",97,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",96,0);
+    eventbus.publishWithPriority(EventBus::TaskPriority::HIGH,"NormalFuncTest",95,0);
     std::this_thread::sleep_for(std::chrono::seconds(20));
     return 0;
 }

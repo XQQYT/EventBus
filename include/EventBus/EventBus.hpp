@@ -319,17 +319,7 @@ public:
                         std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
                 } });
             }else if(task_model == TaskModel::PRIORITY){
-                thread_pool->addTask(static_cast<int>(TaskPriority::MIDDLE),[wrapper, args_tuple](){
-                    try {
-                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
-                            std::apply(*cb, *args_tuple);
-                        } 
-                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
-                            (*cb)();
-                        }
-                    } catch (...) {
-                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
-                } });
+                throw std::runtime_error("Cannot use normal-based publishing in PRIORITY task model");
             }
         }
     }
@@ -342,7 +332,7 @@ public:
      * @param args Event arguments
      */
     template <typename... Args>
-    void publish(TaskPriority priority, const std::string eventName, Args... args)
+    void publishWithPriority(TaskPriority priority, const std::string eventName, Args... args)
     {
         if (!init_status)
         {
@@ -359,17 +349,7 @@ public:
         {
             if (task_model == TaskModel::NORMAL)
             {
-                thread_pool->addTask([wrapper, args_tuple](){
-                    try {
-                        if (auto cb = std::any_cast<std::function<void(Args...)>>(&wrapper.callback)) {
-                            std::apply(*cb, *args_tuple);
-                        } 
-                        else if (auto cb = std::any_cast<std::function<void()>>(&wrapper.callback)) {
-                            (*cb)();
-                        }
-                    } catch (...) {
-                        std::cerr << "Callback execution failed for event: " << wrapper.id << "\n";
-                } });
+                throw std::runtime_error("Cannot use priority-based publishing in NORMAL task model");
             }else if(task_model == TaskModel::PRIORITY){
                 thread_pool->addTask(static_cast<int>(priority),[wrapper, args_tuple](){
                     try {

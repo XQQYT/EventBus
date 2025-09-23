@@ -121,7 +121,7 @@ template <typename... Args>
 void publish(const std::string eventName, Args... args);
 
 template <typename... Args>
-void publish(TaskPriority priority, const std::string eventName, Args... args);
+void publishWithPriority(TaskPriority priority, const std::string eventName, Args... args);
 ```
 
 - 异步调用所有回调
