@@ -263,7 +263,7 @@ public:
      * @brief Register an event with a given name
      * @param eventName Name of the event
      */
-    void tryRegisterEvent(const std::string& eventName)
+    void registerEvent(const std::string& eventName)
     {
         ensureInitialized();
         auto [it, inserted] = callbacks_map.try_emplace(eventName);
@@ -315,7 +315,7 @@ public:
     template <typename... Args>
     callback_id subscribeSafe(const std::string& eventName, std::function<void(Args...)> callback)
     {
-        tryRegisterEvent(eventName);
+        registerEvent(eventName);
         return subscribe(eventName, callback);
     }
 
@@ -329,7 +329,7 @@ public:
     template <typename Callback>
     callback_id subscribeSafe(const std::string eventName, Callback&& callback)
     {
-        tryRegisterEvent(eventName);
+        registerEvent(eventName);
         using signature = typename function_traits<std::decay_t<Callback>>::signature;
         return subscribeSafe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
