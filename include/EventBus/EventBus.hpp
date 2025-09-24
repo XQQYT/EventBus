@@ -341,7 +341,7 @@ public:
      * @param args Event arguments
      */
     template <typename... Args>
-    void publish(const std::string& eventName, Args... args)
+    void publish(const std::string& eventName, Args&&... args)
     {
         ensureInitialized();
         auto it = callbacks_map.find(eventName);
@@ -436,7 +436,7 @@ public:
      * @param args Event arguments
      */
     template <typename... Args>
-    void publishWithPriority(TaskPriority priority, const std::string eventName, Args... args)
+    void publishWithPriority(TaskPriority priority, const std::string& eventName, Args&&... args)
     {
         ensureInitialized();
         auto it = callbacks_map.find(eventName);
