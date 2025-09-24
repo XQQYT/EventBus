@@ -330,7 +330,8 @@ public:
     callback_id subscribeSafe(const std::string eventName, Callback&& callback)
     {
         tryRegisterEvent(eventName);
-        return subscribeSafe(eventName, std::function {std::forward<Callback>(callback)});
+        using signature = typename function_traits<std::decay_t<Callback>>::signature;
+        return subscribeSafe(eventName, std::function<signature>(std::forward<Callback>(callback)));
     }
 
     /**
