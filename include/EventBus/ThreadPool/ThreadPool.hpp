@@ -51,6 +51,16 @@ public:
 template <class... Args>
 class ThreadPool
 {
+
+public:
+    struct ThreadPoolStatus {
+        unsigned int thread_count;           // Current thread count
+        unsigned int idle_thread_count;      // Idle thread count  
+        unsigned int queue_size;             // Task queue size
+        unsigned int total_tasks_processed;  // Total processed tasks
+        unsigned int pending_tasks;          // Pending tasks count
+        bool is_running;                     // Thread pool running status
+    };
 public:
 	ThreadPool()
 	{
@@ -135,8 +145,31 @@ public:
 		return thread_size;
 	}
 
+	void updateStatus()
+	{
+		cur_status.idle_thread_count = thread_size - thread_busy_num;
+		cur_status.is_running = shutdown;
+		cur_status.pending_tasks = task_queue->getSize();
+		cur_status.queue_size = task_queue->getCapacity();
+		cur_status.thread_count = thread_size;
+		cur_status.total_tasks_processed = processed_num;
+	}
+
+	const ThreadPoolStatus& getStatus()
+	{
+		updateStatus();
+		return cur_status;
+	}
+
+	void resetStatistics()
+	{
+		processed_num.store(0);
+	}
+
+
 private:
 	std::atomic<int> thread_busy_num;
+	std::atomic<int> processed_num {};
 	int thread_capacity;
 	int thread_size;
 	int thread_min;
@@ -161,6 +194,7 @@ private:
 
 	std::condition_variable cv;
 
+	ThreadPoolStatus cur_status;
 private:
 	void managerWorkFunction()
 	{
@@ -263,6 +297,7 @@ private:
 
 			std::apply(func, args);
 			thread_busy_num.fetch_sub(1);
+			processed_num.fetch_add(1);
 		}
 	}
 

@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <optional>
 
 #include "ThreadPool/ThreadPool.hpp"
 
@@ -185,6 +186,25 @@ public:
         }
     };
 
+    struct EventSystemStatus {
+        size_t registered_events_count;      // Registered events count
+        size_t total_subscriptions;          // Total subscriptions
+        size_t events_triggered_count;       // Events triggered count
+        size_t events_failed_count;          // Events failed count
+        size_t active_subscriptions;         // Active subscriptions count
+        std::unordered_map<std::string, size_t> event_subscription_count; // Subscriptions per event
+    };
+
+    struct EventBusStatus {
+        ThreadPool<>::ThreadPoolStatus thread_pool_status; // Thread pool status
+        EventSystemStatus event_system_status; // Event system status
+        bool is_initialized;                 // Initialization status
+        EventBus::ThreadModel thread_model;  // Thread model
+        EventBus::TaskModel task_model;      // Task model
+        unsigned int max_threads;            // Max threads limit
+        unsigned int max_tasks;              // Max tasks limit
+    };
+
 public:
     /**
      * @brief Construct a new EventBus object
@@ -285,6 +305,7 @@ public:
         {
             throw EventNotRegisteredException("Event not registered: " + eventName);
         }
+        event_statistics[eventName].subscription_count++;
         callback_id id = ++next_id;
         it->second.emplace_back(CallbackWrapper {id, std::move(callback)});
         return id;
@@ -350,6 +371,10 @@ public:
             throw EventNotRegisteredException("Event not registered: " + eventName);
         }
 
+        events_triggered_count.fetch_add(1, std::memory_order_relaxed);
+        auto& event_stats = event_statistics[eventName];
+        event_stats.triggered_count.fetch_add(1, std::memory_order_relaxed);
+
         if constexpr (sizeof...(Args) == 0)
         {
             for (auto& wrapper : it->second)
@@ -369,6 +394,8 @@ public:
                             }
                             catch (...)
                             {
+                                events_failed_count.fetch_add(1, std::memory_order_relaxed);
+                                event_statistics[eventName].failed_count.fetch_add(1, std::memory_order_relaxed);
                                 std::cerr << "Callback execution failed for event: " << wrapper.id
                                           << "\n";
                             }
@@ -410,7 +437,6 @@ public:
                             {
                                 std::cerr << "Callback execution failed for event: " << wrapper.id
                                           << ", error: " << e.what() << "\n";
-                                // 可选：调用用户定义的错误处理器
                             }
                             catch (...)
                             {
@@ -551,9 +577,166 @@ public:
         if (it != callbacks.end())
         {
             callbacks.erase(it);
+            auto stats_it = event_statistics.find(eventName);
+            if (stats_it != event_statistics.end() && stats_it->second.subscription_count > 0)
+            {
+                stats_it->second.subscription_count--;
+            }
             return true;
         }
         return false;
+    }
+
+    /**
+     * @brief Retrieve the complete state of the EventBus
+     * @return EventBusStatus contains the complete status of the thread pool and event system
+     */
+    EventBusStatus getStatus() const
+    {
+        EventBusStatus status;
+        
+        // Basic status
+        status.is_initialized = init_status;
+        if (init_status)
+        {
+            status.thread_model = config.thread_model;
+            status.task_model = config.task_model;
+            status.max_threads = config.thread_max;
+            status.max_tasks = config.task_max;
+            
+            // Threadpool status
+            if (thread_pool)
+            {
+                auto pool_status = thread_pool->getStatus();
+                status.thread_pool_status.thread_count = pool_status.thread_count;
+                status.thread_pool_status.idle_thread_count = pool_status.idle_thread_count;
+                status.thread_pool_status.queue_size = pool_status.queue_size;
+                status.thread_pool_status.total_tasks_processed = pool_status.total_tasks_processed;
+                status.thread_pool_status.pending_tasks = pool_status.pending_tasks;
+                status.thread_pool_status.is_running = pool_status.is_running;
+            }
+            
+            // Event system status
+            status.event_system_status.registered_events_count = callbacks_map.size();
+            status.event_system_status.events_triggered_count = events_triggered_count.load();
+            status.event_system_status.events_failed_count = events_failed_count.load();
+            
+            // Calculate subscription statistics
+            size_t total_subscriptions = 0;
+            for (const auto& [event_name, callbacks] : callbacks_map)
+            {
+                size_t event_subs = callbacks.size();
+                total_subscriptions += event_subs;
+                status.event_system_status.event_subscription_count[event_name] = event_subs;
+            }
+            status.event_system_status.total_subscriptions = total_subscriptions;
+            status.event_system_status.active_subscriptions = total_subscriptions;
+        }
+        
+        return status;
+    }
+
+    /**
+     * @brief Get simplified status information (better performance)
+     * @return A simplified struct containing key states
+     */
+    struct SimplifiedStatus {
+        bool is_initialized;
+        unsigned int thread_count;
+        unsigned int queue_size;
+        size_t registered_events;
+        size_t total_subscriptions;
+        size_t events_triggered;
+        size_t events_failed;
+    };
+    
+    SimplifiedStatus getSimplifiedStatus() const
+    {
+        SimplifiedStatus status;
+        status.is_initialized = init_status;
+        
+        if (init_status && thread_pool)
+        {
+            auto pool_status = thread_pool->getStatus();
+            status.thread_count = pool_status.thread_count;
+            status.queue_size = pool_status.queue_size;
+            
+            status.registered_events = callbacks_map.size();
+            status.events_triggered = events_triggered_count.load();
+            status.events_failed = events_failed_count.load();
+            
+            size_t total_subs = 0;
+            for (const auto& [_, callbacks] : callbacks_map)
+            {
+                total_subs += callbacks.size();
+            }
+            status.total_subscriptions = total_subs;
+        }
+        
+        return status;
+    }
+
+    /**
+     * @brief Get statistical information for a specific event
+     * @param eventName Event name
+     * @return Event statistical information. If the event does not exist, an empty optional is returned.
+     */
+    struct EventStatistics {
+        size_t subscription_count;
+        size_t triggered_count;
+        size_t failed_count;
+        double success_rate;
+    };
+    
+    std::optional<EventStatistics> getEventStatistics(const std::string& eventName) const
+    {
+        auto event_it = event_statistics.find(eventName);
+        if (event_it == event_statistics.end())
+        {
+            return std::nullopt;
+        }
+        
+        const auto& stats = event_it->second;
+        EventStatistics result;
+        result.subscription_count = stats.subscription_count;
+        result.triggered_count = stats.triggered_count.load();
+        result.failed_count = stats.failed_count.load();
+        
+        if (result.triggered_count > 0)
+        {
+            result.success_rate = (1.0 - static_cast<double>(result.failed_count) / 
+                                 static_cast<double>(result.triggered_count)) * 100.0;
+        }
+        else
+        {
+            result.success_rate = 100.0;
+        }
+        
+        return result;
+    }
+
+    /**
+     * @brief 重置统计计数器
+     * @param reset_events 是否重置事件触发统计
+     * @param reset_threadpool 是否重置线程池统计
+     */
+    void resetStatistics(bool reset_events = true, bool reset_threadpool = false)
+    {
+        if (reset_events)
+        {
+            events_triggered_count.store(0);
+            events_failed_count.store(0);
+            for (auto& [_, stats] : event_statistics)
+            {
+                stats.triggered_count.store(0);
+                stats.failed_count.store(0);
+            }
+        }
+        
+        if (reset_threadpool && thread_pool)
+        {
+            thread_pool->resetStatistics();
+        }
     }
 
 private:
@@ -580,6 +763,16 @@ private:
     EventBusConfig config;
     bool init_status {};
     TaskModel task_model;
+
+        struct EventStats {
+        std::atomic<size_t> triggered_count{0};
+        std::atomic<size_t> failed_count{0};
+        size_t subscription_count{0};
+    };
+    
+    std::atomic<size_t> events_triggered_count{0};
+    std::atomic<size_t> events_failed_count{0};
+    std::unordered_map<std::string, EventStats> event_statistics;
 };
 
 #endif
