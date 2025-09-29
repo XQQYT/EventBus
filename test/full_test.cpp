@@ -188,8 +188,8 @@ private:
             std::atomic<int> callback1Count{0};
             std::atomic<int> callback2Count{0};
             
-            auto callback1 = [&callback1Count](const std::string& message) {
-                callback1Count.fetch_add(1);
+            auto callback1 = [&callback1Count](std::string message) {
+                callback1Count++;
                 // 使用线程安全的输出
                 TestUtils::printProgress("Callback1 received: " + message + " (Count: " + std::to_string(callback1Count) + ")");
             };
@@ -197,8 +197,8 @@ private:
             auto id1 = eventBus.subscribe("test_event", callback1);
             TestUtils::printSuccess("Subscription 1 created with ID: " + std::to_string(id1));
             
-            auto callback2 = [&callback2Count](const std::string& message) {
-                callback2Count.fetch_add(1);
+            auto callback2 = [&callback2Count](std::string message) {
+                callback2Count++;
                 TestUtils::printProgress("Callback2 received: " + message + " (Count: " + std::to_string(callback2Count) + ")");
             };
             
@@ -219,12 +219,12 @@ private:
             }
             
             eventBus.publish("test_event", std::string("Hello Subscribers!"));
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             
             if (callback1Count > 0 && callback2Count > 0) {
                 TestUtils::printSuccess("Subscriptions are working correctly");
             } else {
-                TestUtils::printTestResult(false, "Subscriptions not triggered properly");
+                TestUtils::printTestResult(false, "Subscriptions not triggered properly ");
             }
             
         } catch (const std::exception& e) {
@@ -251,13 +251,13 @@ private:
             });
             
             eventBus.subscribe("string_event", 
-                [&stringCallbackCount](const std::string& msg) {
+                [&stringCallbackCount](std::string msg) {
                     stringCallbackCount++;
                     TestUtils::printProgress("String callback: " + msg + " (Count: " + std::to_string(stringCallbackCount) + ")");
                 });
             
             eventBus.subscribe("multi_arg_event",
-                [&multiArgCallbackCount](int a, double b, const std::string& c) {
+                [&multiArgCallbackCount](int a, double b, std::string c) {
                     multiArgCallbackCount++;
                     TestUtils::printProgress("Multi-arg callback: " + std::to_string(a) + ", " + 
                                            std::to_string(b) + ", " + c + " (Count: " + 
