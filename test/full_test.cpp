@@ -111,7 +111,7 @@ private:
             config.task_model = EventBus::TaskModel::NORMAL;
             config.thread_min = 2;
             config.thread_max = 8;
-            config.task_max = 1024;
+            config.task_max = 102400;
             
             eventBus.initEventBus(config);
             TestUtils::printSuccess("Test 1: EventBus initialized successfully");
@@ -494,13 +494,13 @@ private:
         TestUtils::printTestHeader("9. Performance Tests");
         
         try {
-            const int EVENT_COUNT = 1000;
+            const int EVENT_COUNT = 100000;
             std::atomic<int> processedCount{0};
             
             eventBus.registerEvent("perf_event");
             
             // 简单的性能测试回调，不打印以减少开销
-            eventBus.subscribe("perf_event", [&processedCount](int id) {
+            eventBus.subscribe("perf_event", [&processedCount](int& index) {
                 processedCount++;
             });
             
@@ -510,7 +510,7 @@ private:
             
             // 发布大量事件
             for (int i = 0; i < EVENT_COUNT; i++) {
-                eventBus.publish("perf_event", i);
+                eventBus.publish("perf_event",i);
             }
             
             // 等待所有事件处理完成

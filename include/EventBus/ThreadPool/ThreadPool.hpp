@@ -283,21 +283,20 @@ private:
 				break;
 			}
 
-			if (task_queue->getSize() > 0)
+			try
 			{
 				auto task = task_queue->getTask();
 				func = std::move(task.first);
 				args = std::move(task.second);
 				thread_busy_num.fetch_add(1);
+				std::apply(func, args);
+				thread_busy_num.fetch_sub(1);
+				processed_num.fetch_add(1);
 			}
-			else
+			catch(const std::exception& e)
 			{
-				continue;
+				std::cerr << e.what() << '\n';
 			}
-
-			std::apply(func, args);
-			thread_busy_num.fetch_sub(1);
-			processed_num.fetch_add(1);
 		}
 	}
 

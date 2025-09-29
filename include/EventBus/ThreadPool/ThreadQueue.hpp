@@ -33,13 +33,12 @@ public:
     }
 
     void addTask(std::function<void(Args...)>&& func, Args&&... args) {
-        std::shared_lock<std::shared_mutex> read_lock(rw_mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         if (task_queue.size() >= capacity) 
 		{
             throw std::runtime_error("queue is full");
         }
         
-        std::lock_guard<std::mutex> lock(mtx);
         auto arg_tuple = std::make_tuple(std::forward<Args>(args)...);
         task_queue.push({std::move(func), std::move(arg_tuple)});
         size.fetch_add(1);
