@@ -111,7 +111,7 @@ private:
             config.task_model = EventBus::TaskModel::NORMAL;
             config.thread_min = 2;
             config.thread_max = 8;
-            config.task_max = 100;
+            config.task_max = 1024;
             
             eventBus.initEventBus(config);
             TestUtils::printSuccess("Test 1: EventBus initialized successfully");
