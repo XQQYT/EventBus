@@ -382,7 +382,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [&wrapper]()
+                        [this,&wrapper,&eventName]
                         {
                             try
                             {
@@ -418,7 +418,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [&wrapper, args_tuple]()
+                        [this,&wrapper, args_tuple]()
                         {
                             try
                             {
@@ -484,7 +484,7 @@ public:
                 {
                     thread_pool->addTask(
                         static_cast<int>(priority),
-                        [&wrapper]()
+                        [this,&wrapper]()
                         {
                             try
                             {
@@ -519,7 +519,7 @@ public:
                 {
                     thread_pool->addTask(
                         static_cast<int>(priority),
-                        [&wrapper, args_tuple]()
+                        [this,&wrapper, args_tuple]()
                         {
                             try
                             {
