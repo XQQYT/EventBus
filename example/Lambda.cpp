@@ -8,10 +8,10 @@ int main(){
     EventBus::EventBusConfig config{EventBus::ThreadModel::DYNAMIC,EventBus::TaskModel::NORMAL,2,4,1024};
     eventbus.initEventBus(config);
     eventbus.registerEvent("LambdaTest");
-    eventbus.subscribe("LambdaTest",[](int a,int b){
-        std::cout<<"LambdaTest: a+b="<<a+b<<std::endl;
+    eventbus.subscribe("LambdaTest",[](int a){
+        std::cout<<"LambdaTest: a+b="<<a<<std::endl;
     });
-    eventbus.publish("LambdaTest",77,88);
+    eventbus.publish("LambdaTest",77);
     std::this_thread::sleep_for(std::chrono::seconds(1));
     return 0;
 }

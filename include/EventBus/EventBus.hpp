@@ -151,37 +151,36 @@ public:
               thread_max(t_max),
               task_max(tsk_max)
         {
-            validate();
+            validateConfig(*this);
         }
 
-    private:
-        void validate() const
+        static void validateConfig(const  EventBusConfig& config)
         {
-            if (thread_min <= 0)
+            if (config.thread_min <= 0)
             {
                 throw EventBusConfigurationException(
                     "Invalid EventBus config: thread_min must be > 0, got " +
-                    std::to_string(thread_min));
+                    std::to_string(config.thread_min));
             }
 
-            if (thread_max <= 0)
+            if (config.thread_max <= 0)
             {
                 throw EventBusConfigurationException(
                     "Invalid EventBus config: thread_max must be > 0, got " +
-                    std::to_string(thread_max));
+                    std::to_string(config.thread_max));
             }
-            if (thread_min > thread_max)
+            if (config.thread_min > config.thread_max)
             {
                 throw EventBusConfigurationException("Invalid EventBus config: thread_min (" +
-                                                     std::to_string(thread_min) +
+                                                     std::to_string(config.thread_min) +
                                                      ") cannot be greater than thread_max (" +
-                                                     std::to_string(thread_max) + ")");
+                                                     std::to_string(config.thread_max) + ")");
             }
 
-            if (thread_model == ThreadModel::UNDEFINED)
+            if (config.thread_model == ThreadModel::UNDEFINED)
             {
                 throw EventBusConfigurationException(
-                    "Invalid ThreadModel : " + std::to_string(static_cast<int>(thread_model)));
+                    "Invalid ThreadModel : " + std::to_string(static_cast<int>(config.thread_model)));
             }
         }
     };
@@ -223,8 +222,9 @@ public:
      * @param config EventBusConfig object
      * @throw runtime_error if configuration is invalid
      */
-    void initEventBus(EventBusConfig config)
+    void initEventBus(const EventBusConfig& config)
     {
+        EventBusConfig::validateConfig(config);
         this->config = config;
         if (config.thread_model == ThreadModel::DYNAMIC)
         {
@@ -382,7 +382,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [&wrapper]()
+                        [this,&wrapper,&eventName]
                         {
                             try
                             {
@@ -418,7 +418,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [&wrapper, args_tuple]()
+                        [this,&wrapper, args_tuple]()
                         {
                             try
                             {
@@ -484,7 +484,7 @@ public:
                 {
                     thread_pool->addTask(
                         static_cast<int>(priority),
-                        [&wrapper]()
+                        [this,&wrapper]()
                         {
                             try
                             {
@@ -519,7 +519,7 @@ public:
                 {
                     thread_pool->addTask(
                         static_cast<int>(priority),
-                        [&wrapper, args_tuple]()
+                        [this,&wrapper, args_tuple]()
                         {
                             try
                             {
