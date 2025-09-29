@@ -9,6 +9,9 @@ function(add_example name)
     target_include_directories(${name} PRIVATE include)
 endfunction()
 
+add_executable(full_test test/full_test.cpp)
+target_include_directories(full_test PRIVATE include)
+
 add_example(NormalFunc)
 add_example(Lambda)
 add_example(MemberFunc)
