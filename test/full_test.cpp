@@ -341,12 +341,12 @@ private:
             
             eventBus.registerEvent("unsub_test_event");
             
-            auto activeCallback = [&activeCallbackCount](const std::string& msg) {
+            auto activeCallback = [&activeCallbackCount](std::string msg) {
                 activeCallbackCount++;
                 TestUtils::printProgress("Active callback: " + msg);
             };
             
-            auto unsubscribedCallback = [&unsubscribedCallbackCount](const std::string& msg) {
+            auto unsubscribedCallback = [&unsubscribedCallbackCount](std::string msg) {
                 unsubscribedCallbackCount++;
                 TestUtils::printProgress("This should not be called: " + msg);
             };
