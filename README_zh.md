@@ -3,6 +3,7 @@
 ## 一个轻量级、跨平台，仅头文件的 C++事件总线库，提供简单易用的事件发布-订阅机制。
 
 [教程](https://www.bilibili.com/video/BV13wWwzPE6a/?vd_source=af81440a64836b1a33af1a82ed3c8609)
+[性能测试报告](docs/Chinese/Performance.md)
 
 ---
 

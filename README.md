@@ -3,7 +3,7 @@
 ## A lightweight, cross-platform，header-only C++ event bus library that provides an easy-to-use publish-subscribe mechanism.
 
 [中文文档](README_zh.md)
-
+[Performance Test Report](docs/English/Performance.md)
 [Tutorial Video](https://www.bilibili.com/video/BV13wWwzPE6a/?vd_source=af81440a64836b1a33af1a82ed3c8609)
 
 ---

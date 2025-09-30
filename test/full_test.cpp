@@ -11,7 +11,7 @@
 #include <chrono>
 #include <mutex>
 #include <atomic>
-#include "../include/EventBus/EventBus.hpp"
+#include "EventBus/EventBus.hpp"
 
 // 测试工具函数
 // ANSI 颜色代码
@@ -60,14 +60,12 @@ public:
         std::cout << YELLOW " warning: " RESET << message << "\n";
     }
 
-    // 新增：线程安全的进度显示
     static void printProgress(const std::string& message) {
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << CYAN " [Progress] " RESET << message << "\n";
     }
 };
 
-// 静态成员定义
 std::mutex TestUtils::cout_mutex;
 
 // 测试用例类
@@ -190,7 +188,6 @@ private:
             
             auto callback1 = [&callback1Count](std::string message) {
                 callback1Count++;
-                // 使用线程安全的输出
                 TestUtils::printProgress("Callback1 received: " + message + " (Count: " + std::to_string(callback1Count) + ")");
             };
             
@@ -436,10 +433,8 @@ private:
             
             eventBus.registerEvent("concurrent_event");
             
-            // 使用原子计数器，避免在回调中打印以减少竞争
             eventBus.subscribe("concurrent_event", [&concurrentCounter](int value) {
                 concurrentCounter += value;
-                // 移除打印以减少竞争，只进行计数
                 std::this_thread::sleep_for(std::chrono::microseconds(100)); // 轻微延迟模拟工作
             });
             
@@ -499,7 +494,6 @@ private:
             
             eventBus.registerEvent("perf_event");
             
-            // 简单的性能测试回调，不打印以减少开销
             eventBus.subscribe("perf_event", [&processedCount](int& index) {
                 processedCount++;
             });
@@ -584,7 +578,6 @@ private:
     }
 };
 
-// 主函数
 int main() {
     std::cout << "EventBus Comprehensive Test Suite\n";
     std::cout << "========================================\n";

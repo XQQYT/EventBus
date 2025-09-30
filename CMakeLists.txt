@@ -12,6 +12,9 @@ endfunction()
 add_executable(full_test test/full_test.cpp)
 target_include_directories(full_test PRIVATE include)
 
+add_executable(performance_test test/performance_test.cpp)
+target_include_directories(performance_test PRIVATE include)
+
 add_example(NormalFunc)
 add_example(Lambda)
 add_example(MemberFunc)
