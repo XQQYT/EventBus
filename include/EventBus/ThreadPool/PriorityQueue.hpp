@@ -62,7 +62,6 @@ public:
         ));
         
         std::push_heap(task_queue.begin(), task_queue.end());
-        task_queue.size()++;
     }
 
     std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() {
@@ -74,7 +73,6 @@ public:
         std::pop_heap(task_queue.begin(), task_queue.end());
         auto task = std::move(task_queue.back());
         task_queue.pop_back();
-        task_queue.size()--;
         
         return { std::move(task.func), std::move(task.args) };
     }

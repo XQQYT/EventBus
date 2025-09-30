@@ -24,43 +24,46 @@ class ThreadQueue : public Queue<Args...> {
 public:
     explicit ThreadQueue(int max) noexcept
         : capacity(max) 
-    {
-    }
+    {}
 
     ThreadQueue() 
         : capacity(default_capacity)
+    {}
+
+    void addTask(std::function<void(Args...)>&& func, Args&&... args) 
     {
+        {
+            std::unique_lock<std::mutex> lock(mtx);
+            if (task_queue.size() >= capacity) 
+            {
+                throw std::runtime_error("queue is full");
+            }
+            
+            task_queue.emplace(std::move(func), std::make_tuple(std::forward<Args>(args)...));
+        }
+        size.fetch_add(1, std::memory_order_relaxed);
     }
 
-    void addTask(std::function<void(Args...)>&& func, Args&&... args) {
-        std::unique_lock<std::mutex> lock(mtx);
-        if (task_queue.size() >= capacity) 
-		{
-            throw std::runtime_error("queue is full");
+    std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() 
+    {
+        std::pair<std::function<void(Args...)>, std::tuple<Args...>> task;
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            
+            if (task_queue.empty()) 
+            {
+                throw std::runtime_error("task queue is empty");
+            }
+            
+            task = std::move(task_queue.front());
+            task_queue.pop();
         }
-        
-        auto arg_tuple = std::make_tuple(std::forward<Args>(args)...);
-        task_queue.push({std::move(func), std::move(arg_tuple)});
-        size.fetch_add(1);
-    }
-
-    std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() {
-        std::lock_guard<std::mutex> lock(mtx);
-        
-        if (task_queue.empty()) 
-		{
-            throw std::runtime_error("task queue is empty");
-        }
-        
-        auto task = std::move(task_queue.front());
-        task_queue.pop();
-        size.fetch_sub(1);
+        size.fetch_sub(1,std::memory_order_relaxed);
         
         return task;
     }
 
     inline unsigned int getCapacity() noexcept {
-        std::shared_lock<std::shared_mutex> read_lock(rw_mtx);
         return capacity;
     }
 
@@ -71,7 +74,6 @@ public:
 private:
     std::queue<std::pair<std::function<void(Args...)>, std::tuple<Args...>>> task_queue;
     std::mutex mtx;
-    std::shared_mutex rw_mtx;
     unsigned int capacity;
     std::atomic<unsigned int> size {0};
 };
