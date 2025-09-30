@@ -17,7 +17,7 @@
 #include <tuple>
 #include "Queue.h"
 
-static const int default_capacity = 1024;
+static const unsigned int default_capacity = 1024;
 
 template <class... Args>
 class ThreadQueue : public Queue<Args...> {
@@ -59,12 +59,12 @@ public:
         return task;
     }
 
-    inline int getCapacity() noexcept {
+    inline unsigned int getCapacity() noexcept {
         std::shared_lock<std::shared_mutex> read_lock(rw_mtx);
         return capacity;
     }
 
-    inline int getSize() noexcept {
+    inline unsigned int getSize() noexcept {
         return size.load();
     }
 
@@ -72,8 +72,8 @@ private:
     std::queue<std::pair<std::function<void(Args...)>, std::tuple<Args...>>> task_queue;
     std::mutex mtx;
     std::shared_mutex rw_mtx;
-    int capacity;
-    std::atomic<int> size {0};
+    unsigned int capacity;
+    std::atomic<unsigned int> size {0};
 };
 
 #endif
