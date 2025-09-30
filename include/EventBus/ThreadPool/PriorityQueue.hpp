@@ -6,79 +6,89 @@
  */
 
 #include <iostream>
-#include <set>
+#include <vector>
+#include <algorithm>
 #include <mutex>
 #include <functional>
 #include <tuple>
 #include "Queue.h"
+
 template <typename Func, typename Tuple>
 struct TaskWrapper {
     Func func;
     Tuple args;
-    int priority;
-    int insertion_order; 
+    unsigned int priority;
+    unsigned int insertion_order;
 
-    TaskWrapper(Func f, Tuple a, int p, int order)
+    TaskWrapper(Func f, Tuple a, unsigned int p, unsigned int order)
         : func(std::move(f)), args(std::move(a)), priority(p), insertion_order(order) {}
 
     bool operator<(const TaskWrapper& other) const {
         if (priority == other.priority) {
-            return insertion_order > other.insertion_order; 
+            return insertion_order > other.insertion_order; // 时间顺序：数字小的优先
         }
-        return priority < other.priority;
+        return priority > other.priority; // 优先级：数字大的优先
     }
 };
 
 template <class... Args>
-class ThreadPriorityQueue :public Queue<Args...>{
+class ThreadPriorityQueue : public Queue<Args...> {
 public:
-
     explicit ThreadPriorityQueue(int max) noexcept
         : capacity(max), insertionOrder(0) {
-        this->size = 0;
+        task_queue.reserve(max);
     }
 
     ThreadPriorityQueue() {
         this->capacity = 1024;
-        this->size = 0;
         insertionOrder = 0;
+        task_queue.reserve(this->capacity);
     }
 
-    void addTask(int priority, std::function<void(Args...)>&& func, Args&&... args) {
+    void addTask(unsigned int priority, std::function<void(Args...)>&& func, Args&&... args) {
         std::lock_guard<std::mutex> lock(mtx);
 
-        if (task_set.size() >= this->capacity) {
+        if (task_queue.size() >= this->capacity) {
             throw std::runtime_error("queue is full");
-            return;
         }
-        auto arg_tuple=std::make_tuple(std::forward<Args>(args)...);
-        task_set.insert(TaskType(std::move(func), std::move(arg_tuple), priority, insertionOrder++ ));
-        this->size++;
+        
+        auto arg_tuple = std::make_tuple(std::forward<Args>(args)...);
+        
+        task_queue.push_back(TaskType(
+            std::move(func), 
+            std::move(arg_tuple), 
+            priority, 
+            insertionOrder++
+        ));
+        
+        std::push_heap(task_queue.begin(), task_queue.end());
     }
 
     std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() {
         std::lock_guard<std::mutex> lock(mtx);
-        if (this->size <= 0) {
+        if (task_queue.size() <= 0) {
             throw std::runtime_error("task queue is empty");
         }
-        auto task = *task_set.begin();
-        task_set.erase(task_set.begin());
-        this->size--;
+        
+        std::pop_heap(task_queue.begin(), task_queue.end());
+        auto task = std::move(task_queue.back());
+        task_queue.pop_back();
+        
         return { std::move(task.func), std::move(task.args) };
     }
 
-    inline int getCapacity() noexcept {
+    inline unsigned int getCapacity() noexcept {
         return this->capacity;
     }
-    inline int getSize() noexcept {
-        return this->size;
+    
+    inline unsigned int getSize() noexcept {
+        return task_queue.size();
     }
 
 private:
     using TaskType = TaskWrapper<std::function<void(Args...)>, std::tuple<Args...>>;
-    std::multiset<TaskType> task_set;
+    std::vector<TaskType> task_queue;
     std::mutex mtx;
-    int capacity;
-    int size;
-    int insertionOrder;
+    unsigned int capacity;
+    unsigned int insertionOrder;
 };

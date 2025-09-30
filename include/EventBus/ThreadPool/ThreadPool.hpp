@@ -18,9 +18,9 @@
 #include <unordered_map>
 #include <vector>
 
-static const int default_thread_min = 8;
-static const int default_thread_max = 16;
-static const int default_task_max = 1024;
+static const unsigned int default_thread_min = 8;
+static const unsigned int default_thread_max = 16;
+static const unsigned int default_task_max = 1024;
 
 enum ThreadPoolType
 {
@@ -34,7 +34,7 @@ class QueueFactory
 {
 
 public:
-	static std::unique_ptr<Queue<Args...>> createQueue(ThreadPoolType type, int max_size)
+	static std::unique_ptr<Queue<Args...>> createQueue(ThreadPoolType type, unsigned int max_size)
 	{
 		switch (type)
 		{
@@ -68,11 +68,11 @@ public:
 		thread_busy_num.store(0);
 		need_to_close_num = 0;
 		thread_capacity = default_thread_max;
-		thread_size = default_thread_min;
+		thread_size.store(default_thread_min);
 		thread_min = default_thread_min;
 		manager_thread = std::thread(&ThreadPool::managerWorkFunction, this);
 		task_queue = QueueFactory<Args...>::createQueue(0, default_task_max);
-		for (int i = 0; i < default_thread_min; i++)
+		for (unsigned int i = 0; i < default_thread_min; i++)
 		{
 			std::thread tmp_thread(&ThreadPool::WorkerWorkFunction, this);
 			thread_map.insert({tmp_thread.get_id(), std::move(tmp_thread)});
@@ -99,28 +99,28 @@ public:
 		std::cout << "ThreadPool have exited" << std::endl;
 	}
 
-	explicit ThreadPool(const int thread_min_, const int thread_max, const int task_queue_max, const ThreadPoolType type,
-						const bool use_manager, std::function<std::pair<bool, bool>(int task_num, int thread_size, int busy_num)> custom_scaling_rule = nullptr) noexcept
+	explicit ThreadPool(const unsigned int thread_min_, const unsigned int thread_max, const unsigned int task_queue_max, const ThreadPoolType type,
+						const bool use_manager, std::function<std::pair<bool, bool>(unsigned int task_num, unsigned int thread_size, unsigned int busy_num)> custom_scaling_rule = nullptr) noexcept
 		: thread_min(thread_min_), thread_capacity(thread_max), task_max(task_queue_max), scaling_rule(custom_scaling_rule)
 	{
 		shutdown = false;
 		need_to_close_num = 0;
 		thread_busy_num.store(0);
 		thread_capacity = thread_max;
-		thread_size = thread_min_;
+		thread_size.store(thread_min_);
 		task_queue = QueueFactory<Args...>::createQueue(type, task_queue_max);
 		if (use_manager)
 		{
 			manager_thread = std::thread(&ThreadPool::managerWorkFunction, this);
 		}
-		for (int i = 0; i < thread_min_; i++)
+		for (unsigned int i = 0; i < thread_min_; i++)
 		{
 			std::thread tmp_thread(&ThreadPool::WorkerWorkFunction, this);
 			thread_map.insert({tmp_thread.get_id(), std::move(tmp_thread)});
 		}
 	}
 
-	void addTask(int priority, std::function<void(Args...)> func, Args... args)
+	void addTask(unsigned int priority, std::function<void(Args...)> func, Args... args)
 	{
 		task_queue->addTask(priority, std::move(func), std::forward<Args>(args)...);
 		cv.notify_one();
@@ -133,25 +133,24 @@ public:
 
 	void closeThreadPool()
 	{
-		mtx.lock();
+		std::unique_lock<std::mutex> lock(mtx);
 		shutdown = true;
-		for (int i = 0; i < thread_size; i++)
+		for (unsigned int i = 0; i < thread_size.load(); i++)
 			cv.notify_one();
-		mtx.unlock();
 	}
 
-	inline int getThreadPoolSize() noexcept
+	inline unsigned int getThreadPoolSize() noexcept
 	{
-		return thread_size;
+		return thread_size.load();
 	}
 
 	void updateStatus()
 	{
-		cur_status.idle_thread_count = thread_size - thread_busy_num;
+		cur_status.idle_thread_count = thread_size.load() - thread_busy_num;
 		cur_status.is_running = shutdown;
 		cur_status.pending_tasks = task_queue->getSize();
 		cur_status.queue_size = task_queue->getCapacity();
-		cur_status.thread_count = thread_size;
+		cur_status.thread_count = thread_size.load();
 		cur_status.total_tasks_processed = processed_num;
 	}
 
@@ -168,21 +167,20 @@ public:
 
 
 private:
-	std::atomic<int> thread_busy_num;
-	std::atomic<int> processed_num {};
-	int thread_capacity;
-	int thread_size;
-	int thread_min;
-	int task_max;
+	std::atomic<unsigned int> thread_busy_num;
+	std::atomic<unsigned int> processed_num {};
+	unsigned int thread_capacity;
+	std::atomic<unsigned int> thread_size;
+	unsigned int thread_min;
+	unsigned int task_max;
 
 	std::mutex mtx;
-	std::shared_mutex rw_mtx;
 
 	std::unique_ptr<Queue<Args...>> task_queue;
 
 	std::unordered_map<std::thread::id, std::thread> thread_map;
 
-	std::function<std::pair<bool, bool>(int task_num, int thread_size, int busy_num)> scaling_rule;
+	std::function<std::pair<bool, bool>(unsigned int task_num, unsigned int thread_size, unsigned int busy_num)> scaling_rule;
 
 	std::thread manager_thread;
 
@@ -190,7 +188,7 @@ private:
 
 	bool shutdown;
 
-	std::atomic<int> need_to_close_num;
+	std::atomic<unsigned int> need_to_close_num;
 
 	std::condition_variable cv;
 
@@ -200,7 +198,7 @@ private:
 	{
 		while (!shutdown)
 		{
-			int task_num = task_queue->getSize();
+			unsigned int task_num = task_queue->getSize();
 			bool add = false, remove = false;
 
 			if (scaling_rule)
@@ -213,19 +211,17 @@ private:
 
 			if (add)
 			{
-				std::cout << "add a thread" << std::endl;
 				std::thread new_thread(&ThreadPool::WorkerWorkFunction, this);
 				{
 					std::lock_guard<std::mutex> lk(mtx);
 					thread_map.emplace(new_thread.get_id(), std::move(new_thread));
-					thread_size++;
 				}
+				thread_size.fetch_add(1,std::memory_order_relaxed);
 				cv.notify_one();
 			}
 			if (remove)
 			{
-				std::cout << "kill a thread" << std::endl;
-				need_to_close_num.fetch_add(1);
+				need_to_close_num.fetch_add(1,std::memory_order_relaxed);
 				cv.notify_one();
 			}
 
@@ -276,8 +272,8 @@ private:
 
 			if (need_to_close_num.load() > 0)
 			{
-				need_to_close_num.fetch_sub(1);
-				thread_size--;
+				need_to_close_num.fetch_sub(1,std::memory_order_relaxed);
+				thread_size.fetch_sub(1,std::memory_order_relaxed);
 				std::unique_lock<std::mutex> lock(mtx);
 				need_to_erase.push_back(std::this_thread::get_id());
 				break;
@@ -288,10 +284,10 @@ private:
 				auto task = task_queue->getTask();
 				func = std::move(task.first);
 				args = std::move(task.second);
-				thread_busy_num.fetch_add(1);
+				thread_busy_num.fetch_add(1,std::memory_order_relaxed);
 				std::apply(func, args);
-				thread_busy_num.fetch_sub(1);
-				processed_num.fetch_add(1);
+				thread_busy_num.fetch_sub(1,std::memory_order_relaxed);
+				processed_num.fetch_add(1,std::memory_order_relaxed);
 			}
 			catch(const std::exception& e)
 			{

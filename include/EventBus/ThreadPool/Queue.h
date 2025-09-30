@@ -21,12 +21,12 @@ public:
 	Queue() {};
 	virtual ~Queue() {};
     virtual void addTask(std::function<void(Args...)>&& func, Args&&... args){};
-    virtual void addTask(int priority, std::function<void(Args...)>&& func, Args&&... args){};
+    virtual void addTask(unsigned int priority, std::function<void(Args...)>&& func, Args&&... args){};
 	virtual std::pair<std::function<void(Args...)>, std::tuple<Args...>> getTask() = 0;
 
-	virtual inline int getCapacity() noexcept = 0;
+	virtual inline unsigned int getCapacity() noexcept = 0;
 
-	virtual inline int getSize() noexcept = 0;
+	virtual inline unsigned int getSize() noexcept = 0;
 	
 private:
 
