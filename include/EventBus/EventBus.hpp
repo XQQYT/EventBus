@@ -382,7 +382,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [this,&wrapper,&eventName]
+                        [this,wrapper,&eventName]
                         {
                             try
                             {
@@ -418,7 +418,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-                        [this,&wrapper, args_tuple]()
+                        [this,wrapper, args_tuple]()
                         {
                             try
                             {
