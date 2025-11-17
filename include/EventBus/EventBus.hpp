@@ -418,11 +418,7 @@ public:
                 if (task_model == TaskModel::NORMAL)
                 {
                     thread_pool->addTask(
-<<<<<<< HEAD
                         [this, wrapper, args_tuple]()
-=======
-                        [this,wrapper, args_tuple]()
->>>>>>> 23b94c957bbdcddb1e7a99fd35ff1105c493c2af
                         {
                             try
                             {
